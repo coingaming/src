@@ -384,6 +384,8 @@ data SwapStatus
   | -- | Swap has been funded on-chain,
     -- need to open LN channel now.
     SwapWaitingPeer
+  | -- | Channel opener thread is in progress
+    SwapInPsbtThread
   | -- | Waiting channel opening trx
     -- to be mined with some confirmations.
     SwapWaitingChan
@@ -410,7 +412,8 @@ swapStatusChain =
 
 swapStatusLn :: [SwapStatus]
 swapStatusLn =
-  [ SwapWaitingChan
+  [ SwapInPsbtThread,
+    SwapWaitingChan
   ]
 
 swapStatusFinal :: [SwapStatus]

@@ -1,3 +1,4 @@
+
 {-# LANGUAGE TemplateHaskell #-}
 
 module BtcLsp.Psbt.PsbtOpener

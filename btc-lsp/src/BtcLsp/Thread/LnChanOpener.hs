@@ -19,7 +19,8 @@ import qualified LndClient.Data.Peer as Peer
 import qualified LndClient.RPC.Silent as LndSilent
 
 apply :: (Env m) => m ()
-apply =
+apply = do
+  lock <- liftIO newLock
   forever $ do
     ePeerList <-
       withLnd LndSilent.listPeers id
@@ -31,19 +32,18 @@ apply =
     let peerSet =
           Set.fromList $
             Peer.pubKey <$> fromRight [] ePeerList
-    lock <- liftIO newLock
-    runSql $ do
-      swaps <-
-        filter
+    swaps <- runSql $ filter
           ( \x ->
               Set.member
                 (userNodePubKey . entityVal $ snd x)
                 peerSet
           )
           <$> SwapIntoLn.getSwapsWaitingPeerSql
-      mapM_
-        (uncurry (openChanSql lock))
-        swaps
+    mapM_ (\(swp, usr) -> spawnLink $ do
+      void $ runSql $ SwapIntoLn.updateInPsbtThreadSql $ entityKey swp
+      r <- runSql $ openChanSql lock swp usr
+      whenLeft r $ pure $ runSql $ SwapIntoLn.updateRevertInPsbtThreadSql $ entityKey swp)
+      swaps
     sleep300ms
 
 --
@@ -58,10 +58,10 @@ openChanSql ::
   Lock ->
   Entity SwapIntoLn ->
   Entity User ->
-  ReaderT Psql.SqlBackend m ()
+  ReaderT Psql.SqlBackend m (Either (Entity SwapIntoLn) ())
 openChanSql lock (Entity swapKey _) userEnt = do
   res <-
-    SwapIntoLn.withLockedRowSql swapKey (== SwapWaitingPeer) $
+    SwapIntoLn.withLockedRowSql swapKey (== SwapInPsbtThread) $
       \swapVal -> do
         utxos <- SwapUtxo.getSpendableUtxosBySwapIdSql swapKey
         cpEither <- lift . runExceptT $ do
@@ -93,3 +93,4 @@ openChanSql lock (Entity swapKey _) userEnt = do
       . logStr
       . ("Channel opening failed due to wrong status " <>)
       . inspect
+  pure res

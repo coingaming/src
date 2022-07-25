@@ -50,6 +50,11 @@ getSwapIntoLnSelectR uuid = do
                     MsgSwapIntoLnFundedLong,
                     Info
                   )
+                SwapInPsbtThread ->
+                  ( MsgSwapIntoLnWaitingChanShort,
+                    MsgSwapIntoLnWaitingChanLong,
+                    Info
+                  )
                 SwapWaitingChan ->
                   ( MsgSwapIntoLnWaitingChanShort,
                     MsgSwapIntoLnWaitingChanLong,
@@ -284,6 +289,7 @@ swapStatusMsg :: SwapStatus -> AppMessage
 swapStatusMsg = \case
   SwapWaitingFundChain -> MsgSwapWaitingFundChain
   SwapWaitingPeer -> MsgSwapWaitingPeer
+  SwapInPsbtThread -> MsgSwapWaitingChan
   SwapWaitingChan -> MsgSwapWaitingChan
   SwapSucceeded -> MsgSwapSucceeded
   SwapExpired -> MsgSwapExpired
